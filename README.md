@@ -7,7 +7,9 @@ irkit
 # Install
 
 ```
-sudo ln -s irkit.py /usr/bin/irkit
+git clone https://github.com/kojiishi/irkit.git
+cd irkit
+sudo ln -s $PWD/irkit.py /usr/bin/irkit
 ```
 
 # Recording
