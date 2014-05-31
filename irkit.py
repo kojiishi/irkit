@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import urllib2
 logger = logging.getLogger('irkit')
 
@@ -21,8 +22,7 @@ class IRKit(object):
 	@staticmethod
 	def iter_names(max=1):
 		logger.info('Looking for IRKit...')
-		p = subprocess.Popen(('dns-sd', '-B', '_irkit._tcp'), stdout=subprocess.PIPE)
-		print p.stdout.readline()
+		p = subprocess.Popen(('dns-sd', '-B', '_irkit._tcp'), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		for line in iter(p.stdout.readline, b''):
 			line = line.strip()
 			logger.debug('dns-sd: %s', line)
@@ -52,7 +52,7 @@ class IRKit(object):
 			with closing(urllib2.urlopen(url)) as rs:
 				data = rs.read()
 		except httplib.BadStatusLine:
-			logger.error('BadStatusLine')
+			logger.error('No data received (BadStatusLine.)')
 			return False
 		if not data:
 			logger.error('No data received.')
@@ -93,17 +93,25 @@ def main():
 	args = parser.parse_args()
 	logging.basicConfig()
 	if args.verbose: logger.setLevel(level=logging.INFO if len(args.verbose) == 1 else logging.DEBUG)
+	command = args.commands[0]
+	if command == 'list':
+		for name in IRKit.iter_names(sys.maxint):
+			print(name)
+		return
+
 	settings_path = os.path.expanduser('~/.irkit/settings.json')
 	settings = load_settings(settings_path)
 	name = settings.get('name')
 	if not name:
 		name = first(IRKit.iter_names(1))
 		settings['name'] = name
+
 	irkit = IRKit(name)
-	if args.commands[0] == 'save':
+	if command == 'save':
 		irkit.save(args.commands[1:])
 	else:
 		irkit.execute(args.commands)
+
 	save_settings(settings, settings_path)
 
 main()
