@@ -1,12 +1,12 @@
 irkit
 =====
-A command line tool for [IRKit].
+[IRKit] command line tool for Mac OS X.
 
 [IRKit]: http://getirkit.com
 
 # Install
 ```
-ln -s irkit.py /usr/local/bin/irkit
+sudo ln -s irkit.py /usr/bin/irkit
 ```
 
 # Recording
