@@ -12,7 +12,8 @@ logger = logging.getLogger('irkit')
 
 class IRKit(object):
 	def __init__(self, name):
-		self.datadir = os.path.expanduser('~/.irkit')
+		self._data_dir = os.path.expanduser('~/.irkit')
+		self._scope_dir = self._data_dir
 		self.name = name
 
 	@property
@@ -36,12 +37,61 @@ class IRKit(object):
 		p.kill()
 		logger.debug('iter_names killed')
 
+	@property
+	def scope(self):
+		if not self._scope_dir or self._scope_dir == self._data_dir:
+			return ()
+		relpath = os.path.relpath(self._scope_dir, self._data_dir)
+		return relpath.split('/')
+
+	@scope.setter
+	def scope(self, scope):
+		if not scope:
+			self._scope_dir = self._data_dir
+		else:
+			self._scope_dir = os.path.join(self._data_dir, *scope)
+		logger.info('scope=%s (%s)', self.scope, self._scope_dir)
+
+	@property
+	def scope_dirs(self):
+		dir = self._scope_dir
+		if not dir:
+			yield self._data_dir
+			return
+		while True:
+			yield dir
+			if dir == self._data_dir:
+				break
+			dir = os.path.dirname(dir)
+
+	def _set_scope_dir(self, dir):
+		self._scope_dir = dir
+		logger.info('scope=%s (%s)', self.scope, self._scope_dir)
+
 	def execute(self, commands):
-		path = os.path.join(self.datadir, *commands) + '.ir'
+		for command in commands:
+			logger.debug('Looking for "%s"', command)
+			for dir in self.scope_dirs:
+				logger.debug('Looking for "%s" in "%s"', command, dir)
+				dir = os.path.join(dir, command)
+				path = dir + '.ir'
+				found = False
+				if os.path.exists(path):
+					self.send(path)
+					found = 1
+				if os.path.isdir(dir):
+					self._set_scope_dir(dir)
+					break
+				if found:
+					break
+			else:
+				logger.error('Command "%s" not found', command)
+
+	def send(self, path):
+		url = self.url_base + 'messages'
+		logger.info('Sending %s to %s', path, url)
 		with open(path, 'r') as fp:
 			data = fp.read()
-		url = self.url_base + 'messages'
-		logger.debug('Sending %s to %s', path, url)
 		with closing(urllib2.urlopen(url, data=data)) as rs:
 			pass
 
@@ -58,7 +108,7 @@ class IRKit(object):
 			logger.error('No data received.')
 			return False
 		logger.debug('Received: %s', data)
-		path = os.path.join(self.datadir, *commands[0:-1])
+		path = os.path.join(self._data_dir, *commands[0:-1])
 		if not os.path.isdir(path):
 			os.makedirs(path)
 		path = os.path.join(path, commands[-1]) + '.ir'
@@ -107,11 +157,13 @@ def main():
 		settings['name'] = name
 
 	irkit = IRKit(name)
+	irkit.scope = settings.get('scope')
 	if command == 'save':
 		irkit.save(args.commands[1:])
 	else:
 		irkit.execute(args.commands)
 
+	settings['scope'] = irkit.scope
 	save_settings(settings, settings_path)
 
 main()
