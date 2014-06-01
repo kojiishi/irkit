@@ -14,27 +14,29 @@ logger = logging.getLogger('irkit')
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--verbose', '-v', action='append_const', const=1)
-	parser.add_argument('commands', nargs='+')
+	parser.add_argument('commands', nargs='*')
 	args = parser.parse_args()
 	logging.basicConfig()
 	if args.verbose: logger.setLevel(level=logging.INFO if len(args.verbose) == 1 else logging.DEBUG)
+	settings_path = os.path.expanduser('~/.irkit/settings.json')
+	settings = load_settings(settings_path)
+	irkit = IRKit(settings.get('name'))
+	irkit.scope = settings.get('scope')
+	if not args.commands:
+		sys.stdout.write('''Current scope: %s
+Available commands: %s
+''' % (' '.join(irkit.scope), ' '.join(irkit.get_commands())))
+		return
 	command = args.commands[0]
 	if command == 'list':
 		for name in IRKit.iter_names(sys.maxint):
 			print(name)
 		return
-	settings_path = os.path.expanduser('~/.irkit/settings.json')
-	settings = load_settings(settings_path)
-	name = settings.get('name')
-	if not name:
-		name = first(IRKit.iter_names(1))
-		settings['name'] = name
-	irkit = IRKit(name)
-	irkit.scope = settings.get('scope')
 	if command == 'save':
 		irkit.save(args.commands[1:])
 	else:
 		irkit.execute(args.commands)
+	settings['name'] = irkit.name
 	settings['scope'] = irkit.scope
 	save_settings(settings, settings_path)
 
@@ -46,10 +48,12 @@ class IRKit(object):
 
 	@property
 	def url_base(self):
+		if not self.name:
+			self.name = first(IRKit.iter_names(1))
 		return 'http://' + self.name + '/'
 
 	@staticmethod
-	def iter_names(max=1):
+	def iter_names(max):
 		logger.info('Looking for IRKit...')
 		p = subprocess.Popen(('dns-sd', '-B', '_irkit._tcp'), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		for line in iter(p.stdout.readline, b''):
@@ -95,6 +99,16 @@ class IRKit(object):
 	def _set_scope_dir(self, dir):
 		self._scope_dir = dir
 		logger.info('scope=%s (%s)', self.scope, self._scope_dir)
+
+	def get_commands(self):
+		commands = set()
+		for dir in self.scope_dirs:
+			for name in os.listdir(dir):
+				if name.endswith('.ir'):
+					commands.add(name[0:-3])
+				elif os.path.isdir(os.path.join(dir, name)):
+					commands.add(name)
+		return commands
 
 	def execute(self, commands):
 		for command in commands:
