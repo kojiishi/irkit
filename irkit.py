@@ -11,6 +11,33 @@ import sys
 import urllib2
 logger = logging.getLogger('irkit')
 
+def main():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--verbose', '-v', action='append_const', const=1)
+	parser.add_argument('commands', nargs='+')
+	args = parser.parse_args()
+	logging.basicConfig()
+	if args.verbose: logger.setLevel(level=logging.INFO if len(args.verbose) == 1 else logging.DEBUG)
+	command = args.commands[0]
+	if command == 'list':
+		for name in IRKit.iter_names(sys.maxint):
+			print(name)
+		return
+	settings_path = os.path.expanduser('~/.irkit/settings.json')
+	settings = load_settings(settings_path)
+	name = settings.get('name')
+	if not name:
+		name = first(IRKit.iter_names(1))
+		settings['name'] = name
+	irkit = IRKit(name)
+	irkit.scope = settings.get('scope')
+	if command == 'save':
+		irkit.save(args.commands[1:])
+	else:
+		irkit.execute(args.commands)
+	settings['scope'] = irkit.scope
+	save_settings(settings, settings_path)
+
 class IRKit(object):
 	def __init__(self, name):
 		self._data_dir = os.path.expanduser('~/.irkit')
@@ -143,34 +170,5 @@ def first(iterable, default=None):
 			return item
 	return default
 
-def main():
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--verbose', '-v', action='append_const', const=1)
-	parser.add_argument('commands', nargs='+')
-	args = parser.parse_args()
-	logging.basicConfig()
-	if args.verbose: logger.setLevel(level=logging.INFO if len(args.verbose) == 1 else logging.DEBUG)
-	command = args.commands[0]
-	if command == 'list':
-		for name in IRKit.iter_names(sys.maxint):
-			print(name)
-		return
-
-	settings_path = os.path.expanduser('~/.irkit/settings.json')
-	settings = load_settings(settings_path)
-	name = settings.get('name')
-	if not name:
-		name = first(IRKit.iter_names(1))
-		settings['name'] = name
-
-	irkit = IRKit(name)
-	irkit.scope = settings.get('scope')
-	if command == 'save':
-		irkit.save(args.commands[1:])
-	else:
-		irkit.execute(args.commands)
-
-	settings['scope'] = irkit.scope
-	save_settings(settings, settings_path)
-
-main()
+if __name__ == '__main__':
+	main()
