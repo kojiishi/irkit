@@ -5,6 +5,7 @@ import httplib
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import urllib2
@@ -70,6 +71,9 @@ class IRKit(object):
 
 	def execute(self, commands):
 		for command in commands:
+			mul_match = re.search(r'\*(\d+)$', command)
+			if mul_match:
+				command = command[0:mul_match.start(0)]
 			logger.debug('Looking for "%s"', command)
 			for dir in self.scope_dirs:
 				logger.debug('Looking for "%s" in "%s"', command, dir)
@@ -77,6 +81,9 @@ class IRKit(object):
 				path = dir + '.ir'
 				found = False
 				if os.path.exists(path):
+					if mul_match:
+						for i in range(int(mul_match.group(1)) - 1):
+							self.send(path)
 					self.send(path)
 					found = 1
 				if os.path.isdir(dir):
