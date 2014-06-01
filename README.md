@@ -24,6 +24,14 @@ irkit save tv
 irkit tv
 ```
 
+## Multiplier
+
+Append `*` followed by a number to send multiple times.
+```
+irkit v-up*3
+```
+to send `v-up` 3 times.
+
 # Scope
 
 irkit has a concept of **scope**, which is similar to directories (and is actually implemented as directories.)
@@ -42,6 +50,13 @@ irkit next
 irkit dvd
 irkit next
 ```
-The first command changes the current scope to `/tv`. Commands are searched first in the current scope, and then its parent scopes, so the second `next` command matches to `/tv/next`.
+The first command changes the current scope to `/tv`.
+Commands are searched first in the current scope,
+and then its parent scopes,
+so the second `next` command matches to `/tv/next`.
 
-Third command `dvd` does not exist in the current `/tv` scope, so irkit searches for its parent (i.e., root) scope, where it finds `dvd`, so the current scope is changed to `/dvd`. Then the fourth `next` command sends `/dvd/next`.
+Since the third command `dvd` does not exist in the current `/tv` scope,
+irkit searches for its parent (i.e., root) scope,
+where it finds `dvd`.
+The current scope is now changed to `/dvd`,
+so the fourth `next` command matches to `/dvd/next`.
